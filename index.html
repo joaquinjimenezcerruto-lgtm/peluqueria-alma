@@ -1,0 +1,1306 @@
+
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alma · Peluquería</title>
+
+<style>
+:root {
+  --purple: #735b87;
+  --light: #f4eff7;
+  --ink: #302c35;
+  --border: #ded5e4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #fcfaf8;
+  color: var(--ink);
+  font: 16px/1.6 system-ui, sans-serif;
+}
+
+header {
+  background: white;
+  border-bottom: 1px solid var(--border);
+  padding: 20px max(20px, calc((100vw - 1100px)/2));
+}
+
+.brand {
+  font: bold 32px Georgia, serif;
+}
+
+main {
+  max-width: 1100px;
+  margin: auto;
+  padding: 24px;
+}
+
+h1, h2 {
+  font-family: Georgia, serif;
+}
+
+h1 {
+  font-size: clamp(36px, 7vw, 62px);
+  margin: 18px 0;
+}
+
+h2 {
+  font-size: 28px;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0;
+}
+
+button {
+  background: var(--purple);
+  color: white;
+  border: 0;
+  border-radius: 9px;
+  padding: 11px 17px;
+  cursor: pointer;
+  font: inherit;
+}
+
+button:disabled {
+  opacity: .5;
+  cursor: wait;
+}
+
+.secondary {
+  background: var(--light);
+  color: var(--ink);
+}
+
+.danger {
+  background: #a33e55;
+}
+
+.card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin: 18px 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+label {
+  display: block;
+  margin: 14px 0 5px;
+  font-weight: 600;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  background: white;
+}
+
+textarea {
+  min-height: 85px;
+}
+
+form button {
+  margin-top: 16px;
+}
+
+small, .muted {
+  color: #716875;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+#notice {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--light);
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.booking {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.booking button {
+  margin-top: 10px;
+}
+
+.chat {
+  height: 300px;
+  overflow: auto;
+  background: #faf8fc;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.bubble {
+  max-width: 88%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 10px 14px;
+  margin: 10px 0;
+  border-radius: 12px;
+  background: #eee8f3;
+}
+
+.mine {
+  margin-left: auto;
+  background: #e0efe6;
+}
+
+iframe {
+  width: 100%;
+  height: 350px;
+  border: 0;
+  border-radius: 14px;
+}
+
+a {
+  color: var(--purple);
+}
+
+:focus-visible {
+  outline: 3px solid #bb8e42;
+  outline-offset: 3px;
+}
+
+footer {
+  text-align: center;
+  padding: 24px;
+  color: #716875;
+}
+
+@media (max-width: 700px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  main {
+    padding: 16px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="brand">alma.</div>
+  <small>Peluquería · Reservas y atención</small>
+</header>
+
+<main>
+
+<h1>Tu momento. Tu estilo.</h1>
+<p>
+  Reserva como invitado o inicia sesión.
+  Conversa con el dueño aquí mismo.
+</p>
+
+<p id="identity" class="muted">
+  Visitante · Puedes reservar sin crear cuenta.
+</p>
+
+<p id="notice" role="status" aria-live="polite" hidden></p>
+
+<nav aria-label="Secciones">
+  <button data-page="reserve">Reservar</button>
+
+  <button data-page="appointments" class="secondary">
+    Mis citas y chat
+  </button>
+
+  <button data-page="account" class="secondary">
+    Mi cuenta
+  </button>
+
+  <button data-page="location" class="secondary">
+    Ubicación
+  </button>
+
+  <button data-page="owner" class="secondary">
+    Acceso del dueño
+  </button>
+
+  <button id="logout" class="secondary" hidden>
+    Cerrar sesión
+  </button>
+</nav>
+
+<section id="reserve" class="page card">
+  <h2>Reserva tu cita</h2>
+  <p>Lunes a sábado · 09:00–18:00 · Una hora por cita.</p>
+
+  <form id="bookingForm">
+    <label for="clientName">Nombre del cliente</label>
+    <input
+      id="clientName"
+      required
+      minlength="2"
+      maxlength="100"
+      placeholder="Ej. Ana Prueba"
+    >
+
+    <label for="service">Servicio</label>
+    <select id="service">
+      <option>Corte de cabello</option>
+      <option>Peinado</option>
+      <option>Tratamiento capilar</option>
+    </select>
+
+    <div class="grid">
+      <div>
+        <label for="day">Fecha</label>
+        <input id="day" type="date" required>
+      </div>
+
+      <div>
+        <label for="hour">Hora disponible</label>
+        <select id="hour" required>
+          <option value="">Selecciona una fecha</option>
+        </select>
+      </div>
+    </div>
+
+    <button
+      type="button"
+      id="refreshSlots"
+      class="secondary"
+    >
+      Actualizar horarios
+    </button>
+
+    <button type="submit">Reservar cita</button>
+  </form>
+
+  <p class="muted">
+    Puedes reservar sin crear una cuenta.
+    Si después creas una cuenta en esta misma sesión,
+    conservarás tus reservas.
+  </p>
+
+  <small>Para el laboratorio, utiliza únicamente datos inventados.</small>
+</section>
+
+<section id="appointments" class="page card" hidden>
+  <h2>Mis citas y mensajes</h2>
+  <button id="refreshBookings">Actualizar mis citas</button>
+  <div id="bookingList"></div>
+</section>
+
+<section id="account" class="page" hidden>
+  <div class="grid">
+
+    <div class="card">
+      <h2>Crear cuenta opcional</h2>
+      <p>
+        Si ya reservaste como invitado,
+        conservarás tus reservas al crear tu cuenta.
+      </p>
+
+      <form id="signupForm">
+        <label for="signupName">Nombre inventado</label>
+        <input
+          id="signupName"
+          required
+          minlength="2"
+          maxlength="100"
+        >
+
+        <label for="signupEmail">Correo inventado</label>
+        <input
+          id="signupEmail"
+          type="email"
+          required
+          placeholder="ana@prueba.com"
+        >
+
+        <label for="signupPassword">Contraseña</label>
+        <input
+          id="signupPassword"
+          type="password"
+          minlength="8"
+          maxlength="128"
+          required
+          autocomplete="new-password"
+        >
+
+        <button type="submit">Crear mi cuenta</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Iniciar sesión</h2>
+
+      <form id="loginForm">
+        <label for="loginEmail">Correo</label>
+        <input
+          id="loginEmail"
+          type="email"
+          required
+          autocomplete="username"
+        >
+
+        <label for="loginPassword">Contraseña</label>
+        <input
+          id="loginPassword"
+          type="password"
+          required
+          autocomplete="current-password"
+        >
+
+        <button type="submit">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Editar mi cuenta</h2>
+    <p>Deja vacíos los datos que no quieras cambiar.</p>
+
+    <form id="editForm">
+      <label for="editName">Nuevo nombre</label>
+      <input id="editName" minlength="2" maxlength="100">
+
+      <label for="editEmail">Nuevo correo inventado</label>
+      <input id="editEmail" type="email">
+
+      <label for="editPassword">Nueva contraseña</label>
+      <input
+        id="editPassword"
+        type="password"
+        minlength="8"
+        maxlength="128"
+        autocomplete="new-password"
+      >
+
+      <button type="submit">Guardar cambios</button>
+    </form>
+  </div>
+</section>
+
+<section id="location" class="page card" hidden>
+  <h2>Ubicación del local</h2>
+  <p id="addressText">Dirección exacta pendiente.</p>
+  <p id="contactText"></p>
+  <p>Lunes a sábado · 09:00–18:00</p>
+
+  <iframe
+    id="map"
+    title="Ubicación del local"
+    loading="lazy"
+  ></iframe>
+
+  <p>
+    <a
+      id="mapLink"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Abrir en Google Maps
+    </a>
+  </p>
+</section>
+
+<section id="owner" class="page card" hidden>
+  <h2>Acceso del dueño</h2>
+
+  <form id="ownerLoginForm">
+    <label for="ownerUser">Usuario o correo</label>
+    <input
+      id="ownerUser"
+      placeholder="owner"
+      required
+      autocomplete="username"
+    >
+
+    <label for="ownerPassword">Contraseña</label>
+    <input
+      id="ownerPassword"
+      type="password"
+      required
+      autocomplete="current-password"
+    >
+
+    <button type="submit">Entrar como dueño</button>
+  </form>
+
+  <div id="ownerPanel" hidden>
+    <h2>Administración de citas</h2>
+
+    <button id="refreshOwner">Actualizar todas las citas</button>
+    <div id="ownerList"></div>
+
+    <div id="managePanel" class="card" hidden>
+      <h3 id="manageTitle"></h3>
+
+      <label for="newDay">Nueva fecha</label>
+      <input id="newDay" type="date">
+
+      <label for="newHour">Nueva hora</label>
+      <select id="newHour"></select>
+
+      <p>
+        <button id="reschedule">Reprogramar</button>
+        <button id="cancelBooking" class="danger">
+          Cancelar cita
+        </button>
+      </p>
+    </div>
+
+    <h2>Información del local</h2>
+
+    <form id="settingsForm">
+      <label for="addressInput">Dirección de ejemplo</label>
+      <input
+        id="addressInput"
+        required
+        minlength="5"
+        maxlength="300"
+      >
+
+      <label for="contactInput">Contacto de ejemplo</label>
+      <input id="contactInput" maxlength="200">
+
+      <button type="submit">Guardar información</button>
+    </form>
+  </div>
+</section>
+
+<section id="chatPanel" class="card" hidden>
+  <h2 id="chatTitle">Conversación</h2>
+
+  <div
+    id="messages"
+    class="chat"
+    aria-live="polite"
+  ></div>
+
+  <form id="messageForm">
+    <label for="messageText">Mensaje</label>
+    <textarea
+      id="messageText"
+      required
+      maxlength="2000"
+    ></textarea>
+
+    <button type="submit">Enviar mensaje</button>
+  </form>
+
+  <small>
+    Se actualiza cada 5 segundos.
+    El dueño responde cuando está conectado.
+  </small>
+</section>
+
+</main>
+
+<footer>Alma · Tu estilo empieza contigo.</footer>
+
+<script type="module">
+import { createClient } from
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+// REEMPLAZA ESTOS DOS VALORES CON LOS DE TU PROYECTO.
+// Usa únicamente la clave publicable.
+// No pegues claves secretas ni service_role.
+const SUPABASE_URL = "https://irygqtuhppzgjybzigkd.supabase.co";
+const SUPABASE_KEY = "sb_publishable_2lDIVJT9cARASM-E5dN-9A_RGrpsSWl";
+
+const $ = id => document.getElementById(id);
+
+let sb = null;
+let user = null;
+let owner = false;
+let selected = null;
+let refreshing = false;
+let messagesSignature = "";
+let sessionVersion = 0;
+
+function notify(text) {
+  $("notice").textContent = text;
+  $("notice").hidden = false;
+}
+
+function result(response) {
+  if (response.error) throw response.error;
+  return response.data;
+}
+
+async function safely(action) {
+  try {
+    await action();
+  } catch (error) {
+    console.error(error);
+    notify(error.message || "No se pudo completar la operación.");
+  }
+}
+
+function requireConnection() {
+  if (!sb) {
+    throw new Error(
+      "Primero configura la URL y la clave publicable de Supabase."
+    );
+  }
+}
+
+function localDay(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Guayaquil",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+
+  const values = Object.fromEntries(
+    parts.map(part => [part.type, part.value])
+  );
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function maxDay() {
+  return localDay(new Date(Date.now() + 59 * 86400000));
+}
+
+function slotISO(day, hour) {
+  if (!day || !hour) {
+    throw new Error("Selecciona una fecha y una hora.");
+  }
+
+  const date = new Date(`${day}T${hour}:00-05:00`);
+
+  if (!Number.isFinite(date.getTime()) || date <= new Date()) {
+    throw new Error("Selecciona una fecha y hora futuras.");
+  }
+
+  return date.toISOString();
+}
+
+function describe(booking) {
+  const when = new Date(booking.starts_at).toLocaleString("es-EC", {
+    timeZone: "America/Guayaquil",
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
+
+  return `${booking.client_name} · ${booking.service} · ` +
+         `${when} · ${booking.status}`;
+}
+
+function clearPrivateViews() {
+  sessionVersion++;
+  selected = null;
+  messagesSignature = "";
+
+  $("messages").replaceChildren();
+  $("bookingList").replaceChildren();
+  $("ownerList").replaceChildren();
+
+  $("chatPanel").hidden = true;
+  $("managePanel").hidden = true;
+}
+
+async function syncIdentity() {
+  requireConnection();
+
+  const data = result(await sb.auth.getSession());
+  user = data.session?.user || null;
+
+  owner = user
+    ? Boolean(result(await sb.rpc("alma_is_owner")))
+    : false;
+
+  $("identity").textContent = !user
+    ? "Visitante · Puedes reservar sin crear cuenta."
+    : owner
+      ? "Conectado como dueño"
+      : user.is_anonymous
+        ? "Invitado · Puedes crear una cuenta y conservar tus reservas."
+        : `Cuenta: ${user.email}`;
+
+  $("logout").hidden = !user;
+  $("ownerPanel").hidden = !owner;
+  $("ownerLoginForm").hidden = owner;
+
+  if (user?.user_metadata?.name) {
+    $("clientName").value = user.user_metadata.name;
+  }
+}
+
+async function ensureGuest() {
+  requireConnection();
+
+  if (!user) {
+    result(await sb.auth.signInAnonymously());
+    await syncIdentity();
+  }
+}
+
+async function loadSlots() {
+  requireConnection();
+
+  const day = $("day").value;
+  $("hour").replaceChildren();
+  $("hour").add(new Option("Selecciona una hora", ""));
+
+  if (!day) return;
+
+  const slots = result(
+    await sb.rpc("alma_available_slots", { p_day: day })
+  );
+
+  // No muestra una respuesta de una fecha seleccionada anteriormente.
+  if ($("day").value !== day) return;
+
+  $("hour").replaceChildren();
+  $("hour").add(new Option("Selecciona una hora", ""));
+
+  for (const row of slots) {
+    $("hour").add(new Option(row.slot, row.slot));
+  }
+
+  if (!slots.length) {
+    notify("No hay horarios disponibles para ese día.");
+  }
+}
+
+async function loadSettings() {
+  requireConnection();
+
+  const settings = result(
+    await sb.from("alma_settings")
+      .select("*")
+      .eq("id", 1)
+      .single()
+  );
+
+  $("addressText").textContent = settings.address;
+  $("contactText").textContent = settings.contact;
+  $("addressInput").value = settings.address;
+  $("contactInput").value = settings.contact;
+
+  const query = settings.address.includes("pendiente")
+    ? "Quito, Ecuador"
+    : settings.address;
+
+  $("map").src =
+    "https://maps.google.com/maps?q=" +
+    encodeURIComponent(query) +
+    "&output=embed";
+
+  $("mapLink").href =
+    "https://www.google.com/maps/search/?api=1&query=" +
+    encodeURIComponent(query);
+}
+
+async function loadBookings(admin = false) {
+  requireConnection();
+
+  const list = $(admin ? "ownerList" : "bookingList");
+  list.replaceChildren();
+
+  if (!user) {
+    list.textContent =
+      "Primero reserva como invitado o inicia sesión.";
+    return;
+  }
+
+  if (admin && !owner) {
+    throw new Error("Acceso exclusivo del dueño.");
+  }
+
+  const version = sessionVersion;
+
+  let query = sb.from("alma_bookings")
+    .select("*")
+    .order("starts_at");
+
+  if (!admin) {
+    query = query.eq("user_id", user.id);
+  }
+
+  const bookings = result(await query);
+
+  if (version !== sessionVersion) return;
+
+  if (!bookings.length) {
+    list.textContent = "No hay citas registradas.";
+    return;
+  }
+
+  for (const booking of bookings) {
+    const card = document.createElement("div");
+    card.className = "booking";
+
+    const title = document.createElement("p");
+    title.textContent = describe(booking);
+
+    const button = document.createElement("button");
+    button.textContent = admin
+      ? "Gestionar y conversar"
+      : "Abrir conversación";
+
+    button.onclick = () => safely(
+      () => openBooking(booking, admin)
+    );
+
+    card.append(title, button);
+    list.append(card);
+  }
+}
+
+async function openBooking(booking, admin) {
+  selected = booking;
+  messagesSignature = "";
+
+  $("chatTitle").textContent = describe(booking);
+  $("chatPanel").hidden = false;
+  $("managePanel").hidden = !admin;
+
+  if (admin) {
+    $("manageTitle").textContent = describe(booking);
+    $("newDay").value = localDay(new Date(booking.starts_at));
+
+    $("newHour").value = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "America/Guayaquil",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23"
+    }).format(new Date(booking.starts_at));
+  }
+
+  await refreshChat();
+
+  $("chatPanel").scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+async function refreshChat() {
+  if (!sb || !user || !selected || refreshing) return;
+
+  refreshing = true;
+  const version = sessionVersion;
+  const currentUserId = user.id;
+  const id = selected.id;
+
+  try {
+    const current = result(
+      await sb.from("alma_bookings")
+        .select("*")
+        .eq("id", id)
+        .single()
+    );
+
+    const rows = result(
+      await sb.from("alma_messages")
+        .select("*")
+        .eq("booking_id", id)
+        .order("created_at")
+        .order("id")
+    );
+
+    if (
+      version !== sessionVersion ||
+      !selected ||
+      selected.id !== id
+    ) return;
+
+    selected = current;
+    $("chatTitle").textContent = describe(current);
+
+    if (owner) {
+      $("manageTitle").textContent = describe(current);
+    }
+
+    const signature = JSON.stringify(rows);
+    if (signature === messagesSignature) return;
+    messagesSignature = signature;
+
+    const box = $("messages");
+    const nearBottom =
+      box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+
+    box.replaceChildren();
+
+    for (const message of rows) {
+      const bubble = document.createElement("div");
+
+      bubble.className = "bubble" +
+        (message.author_id === currentUserId ? " mine" : "");
+
+      const author = message.author_id === current.user_id
+        ? "Cliente"
+        : "Dueño";
+
+      bubble.textContent = `${author}: ${message.body}`;
+      box.append(bubble);
+    }
+
+    if (nearBottom || rows.length < 3) {
+      box.scrollTop = box.scrollHeight;
+    }
+  } finally {
+    refreshing = false;
+  }
+}
+
+async function login(email, password, ownerAccess) {
+  requireConnection();
+
+  if (user?.is_anonymous) {
+    throw new Error(
+      "Primero crea una cuenta para conservar tus reservas de invitado, " +
+      "o cierra sesión antes de entrar con otra cuenta."
+    );
+  }
+
+  clearPrivateViews();
+
+  result(
+    await sb.auth.signInWithPassword({ email, password })
+  );
+
+  await syncIdentity();
+
+  if (ownerAccess && !owner) {
+    result(await sb.auth.signOut({ scope: "local" }));
+    clearPrivateViews();
+    await syncIdentity();
+    throw new Error("Esa cuenta no tiene permisos de dueño.");
+  }
+
+  notify(
+    owner
+      ? "Acceso del dueño iniciado."
+      : "Sesión iniciada."
+  );
+}
+
+function bindForm(id, action) {
+  $(id).addEventListener("submit", event => {
+    event.preventDefault();
+    const button = event.submitter;
+
+    safely(async () => {
+      requireConnection();
+
+      if (button) button.disabled = true;
+
+      try {
+        await action();
+      } finally {
+        if (button) button.disabled = false;
+      }
+    });
+  });
+}
+
+// Navegación entre secciones.
+document.querySelectorAll("[data-page]").forEach(button => {
+  button.onclick = () => safely(async () => {
+    const target = button.dataset.page;
+
+    document.querySelectorAll(".page").forEach(page => {
+      page.hidden = page.id !== target;
+    });
+
+    $("chatPanel").hidden = true;
+
+    if (sb && target === "appointments") {
+      await loadBookings();
+    }
+
+    if (sb && target === "location") {
+      await loadSettings();
+    }
+  });
+});
+
+// Configuración de fechas y horas.
+for (const id of ["day", "newDay"]) {
+  $(id).min = localDay();
+  $(id).max = maxDay();
+}
+
+for (let hour = 9; hour < 18; hour++) {
+  const value = `${String(hour).padStart(2, "0")}:00`;
+  $("newHour").add(new Option(value, value));
+}
+
+$("day").onchange = () => safely(loadSlots);
+
+$("refreshSlots").onclick = () => safely(loadSlots);
+
+$("refreshBookings").onclick = () => safely(
+  () => loadBookings()
+);
+
+$("refreshOwner").onclick = () => safely(
+  () => loadBookings(true)
+);
+
+// Reservar directamente como invitado o cliente.
+bindForm("bookingForm", async () => {
+  if (owner) {
+    throw new Error(
+      "Cierra la sesión del dueño para reservar como cliente."
+    );
+  }
+
+  const name = $("clientName").value.trim();
+
+  if (name.length < 2) {
+    throw new Error("Escribe un nombre válido.");
+  }
+
+  const startsAt = slotISO(
+    $("day").value,
+    $("hour").value
+  );
+
+  await ensureGuest();
+
+  const response = await sb.from("alma_bookings")
+    .insert({
+      user_id: user.id,
+      client_name: name,
+      service: $("service").value,
+      starts_at: startsAt
+    })
+    .select()
+    .single();
+
+  if (response.error?.code === "23505") {
+    await loadSlots();
+    throw new Error(
+      "Ese horario acaba de ocuparse. Elige otro."
+    );
+  }
+
+  result(response);
+
+  notify(
+    "✅ Reserva guardada en Supabase. " +
+    "Revísala en «Mis citas y chat»."
+  );
+
+  await loadSlots();
+});
+
+// Crear cuenta o convertir invitado en cuenta permanente.
+bindForm("signupForm", async () => {
+  const name = $("signupName").value.trim();
+  const email = $("signupEmail").value.trim().toLowerCase();
+  const password = $("signupPassword").value;
+
+  if (name.length < 2) {
+    throw new Error("Escribe un nombre válido.");
+  }
+
+  if (user && !user.is_anonymous) {
+    throw new Error(
+      "Ya tienes una cuenta iniciada. Usa «Editar mi cuenta»."
+    );
+  }
+
+  if (user?.is_anonymous) {
+    result(
+      await sb.auth.updateUser({
+        email,
+        password,
+        data: { name }
+      })
+    );
+  } else {
+    result(
+      await sb.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name }
+        }
+      })
+    );
+  }
+
+  await syncIdentity();
+  $("signupPassword").value = "";
+
+  notify(
+    user && !user.is_anonymous
+      ? "✅ Cuenta creada. Tus reservas se conservan."
+      : "Revisa la configuración de confirmación de correo de Supabase."
+  );
+});
+
+// Inicio de sesión del cliente.
+bindForm("loginForm", async () => {
+  await login(
+    $("loginEmail").value.trim().toLowerCase(),
+    $("loginPassword").value,
+    false
+  );
+
+  $("loginPassword").value = "";
+});
+
+// Inicio de sesión del dueño.
+bindForm("ownerLoginForm", async () => {
+  const input = $("ownerUser").value.trim().toLowerCase();
+
+  await login(
+    input === "owner" ? "owner@prueba.com" : input,
+    $("ownerPassword").value,
+    true
+  );
+
+  $("ownerPassword").value = "";
+  await loadBookings(true);
+});
+
+// Editar cuenta.
+bindForm("editForm", async () => {
+  if (!user || user.is_anonymous) {
+    throw new Error(
+      "Primero crea una cuenta o inicia sesión."
+    );
+  }
+
+  const changes = {};
+
+  if ($("editName").value.trim()) {
+    changes.data = {
+      name: $("editName").value.trim()
+    };
+  }
+
+  if ($("editEmail").value.trim()) {
+    changes.email = $("editEmail").value.trim().toLowerCase();
+  }
+
+  if ($("editPassword").value) {
+    changes.password = $("editPassword").value;
+  }
+
+  if (!Object.keys(changes).length) {
+    throw new Error("Introduce al menos un cambio.");
+  }
+
+  result(await sb.auth.updateUser(changes));
+
+  $("editForm").reset();
+  await syncIdentity();
+
+  notify("✅ Cuenta actualizada.");
+});
+
+// Mensajes compartidos mediante Supabase.
+bindForm("messageForm", async () => {
+  if (!user || !selected) {
+    throw new Error("Selecciona una cita.");
+  }
+
+  const body = $("messageText").value.trim();
+
+  if (!body) {
+    throw new Error("Escribe un mensaje.");
+  }
+
+  result(
+    await sb.from("alma_messages").insert({
+      booking_id: selected.id,
+      author_id: user.id,
+      body
+    })
+  );
+
+  $("messageText").value = "";
+  await refreshChat();
+
+  notify("✅ Mensaje enviado.");
+});
+
+// Solo el dueño puede reprogramar.
+$("reschedule").onclick = () => safely(async () => {
+  requireConnection();
+
+  if (!owner || !selected) {
+    throw new Error("Selecciona una cita como dueño.");
+  }
+
+  if (selected.status !== "Activa") {
+    throw new Error("La cita está cancelada.");
+  }
+
+  const response = await sb.from("alma_bookings")
+    .update({
+      starts_at: slotISO(
+        $("newDay").value,
+        $("newHour").value
+      )
+    })
+    .eq("id", selected.id)
+    .select()
+    .single();
+
+  if (response.error?.code === "23505") {
+    throw new Error("Ese horario está ocupado.");
+  }
+
+  selected = result(response);
+
+  await refreshChat();
+  await loadBookings(true);
+
+  notify(
+    "✅ Cita reprogramada. El cliente verá el nuevo horario."
+  );
+});
+
+// Solo el dueño puede cancelar.
+$("cancelBooking").onclick = () => safely(async () => {
+  requireConnection();
+
+  if (!owner || !selected) {
+    throw new Error("Selecciona una cita como dueño.");
+  }
+
+  if (!confirm("¿Cancelar esta cita?")) return;
+
+  selected = result(
+    await sb.from("alma_bookings")
+      .update({ status: "Cancelada" })
+      .eq("id", selected.id)
+      .select()
+      .single()
+  );
+
+  await refreshChat();
+  await loadBookings(true);
+
+  notify(
+    "✅ Cita cancelada. El cliente verá el nuevo estado."
+  );
+});
+
+// Actualizar dirección y contacto.
+bindForm("settingsForm", async () => {
+  if (!owner) {
+    throw new Error("Acceso exclusivo del dueño.");
+  }
+
+  result(
+    await sb.from("alma_settings")
+      .update({
+        address: $("addressInput").value.trim(),
+        contact: $("contactInput").value.trim()
+      })
+      .eq("id", 1)
+      .select()
+      .single()
+  );
+
+  await loadSettings();
+
+  notify("✅ Información del local actualizada.");
+});
+
+// Cerrar sesión.
+$("logout").onclick = () => safely(async () => {
+  requireConnection();
+
+  if (
+    user?.is_anonymous &&
+    !confirm(
+      "Si sales como invitado no podrás recuperar esta sesión. " +
+      "Puedes crear una cuenta antes de salir. ¿Deseas continuar?"
+    )
+  ) {
+    return;
+  }
+
+  result(await sb.auth.signOut({ scope: "local" }));
+
+  clearPrivateViews();
+  await syncIdentity();
+
+  notify("Sesión cerrada.");
+});
+
+// Conexión inicial.
+async function start() {
+  if (
+    SUPABASE_URL.includes("PEGA_") ||
+    SUPABASE_KEY.includes("PEGA_")
+  ) {
+    throw new Error(
+      "La página está preparada. Para activar cuentas, citas y chat, " +
+      "reemplaza SUPABASE_URL y SUPABASE_KEY con los datos de tu proyecto."
+    );
+  }
+
+  if (SUPABASE_KEY.startsWith("sb_secret_")) {
+    throw new Error(
+      "No uses una clave secreta. Pega únicamente la clave publicable."
+    );
+  }
+
+  sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  await syncIdentity();
+  await loadSettings();
+
+  // Si la sesión cambia en otra pestaña, limpia la información anterior.
+  sb.auth.onAuthStateChange(event => {
+    if (event === "SIGNED_OUT") {
+      clearPrivateViews();
+      user = null;
+      owner = false;
+      $("identity").textContent =
+        "Visitante · Puedes reservar sin crear cuenta.";
+      $("logout").hidden = true;
+      $("ownerPanel").hidden = true;
+      $("ownerLoginForm").hidden = false;
+    }
+  });
+
+  // Actualiza la conversación abierta.
+  setInterval(() => {
+    if (!document.hidden && selected) {
+      safely(refreshChat);
+    }
+  }, 5000);
+}
+
+safely(start);
+</script>
+
+</body>
+</html>
