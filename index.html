@@ -217,12 +217,12 @@ footer {
 
 <h1>Tu momento. Tu estilo.</h1>
 <p>
-  Reserva como invitado o inicia sesión.
+  Inicia sesión con correo y contraseña para reservar.
   Conversa con el dueño aquí mismo.
 </p>
 
 <p id="identity" class="muted">
-  Visitante · Puedes reservar sin crear cuenta.
+  Visitante · Inicia sesión o crea tu cuenta para reservar.
 </p>
 
 <p id="notice" role="status" aria-live="polite" hidden></p>
@@ -251,10 +251,17 @@ footer {
   </button>
 </nav>
 
+<section id="alertsPanel" class="card" aria-label="Avisos de mi cuenta" hidden>
+  <h2>Avisos <span id="alertCount">0</span></h2>
+  <p id="liveStatus" class="muted" role="status">Conectando actualizaciones…</p>
+  <div id="alertList" aria-live="polite"></div>
+</section>
+
 <section id="reserve" class="page card">
   <h2>Reserva tu cita</h2>
   <p>Lunes a sábado · 09:00–18:00 · Una hora por cita.</p>
 
+  <p id="loginRequired">Para reservar, entra en «Mi cuenta» con correo y contraseña.</p>
   <form id="bookingForm">
     <label for="clientName">Nombre del cliente</label>
     <input
@@ -294,13 +301,12 @@ footer {
       Actualizar horarios
     </button>
 
-    <button type="submit">Reservar cita</button>
+    <button id="reserveSubmit" type="submit">Reservar cita</button>
   </form>
 
   <p class="muted">
-    Puedes reservar sin crear una cuenta.
-    Si después creas una cuenta en esta misma sesión,
-    conservarás tus reservas.
+    Cada cita queda vinculada a tu cuenta. Inicia sesión con tu correo y
+    contraseña antes de reservar.
   </p>
 
   <small>Para el laboratorio, utiliza únicamente datos inventados.</small>
@@ -316,10 +322,11 @@ footer {
   <div class="grid">
 
     <div class="card">
-      <h2>Crear cuenta opcional</h2>
+      <h2>Crear mi cuenta</h2>
       <p>
-        Si ya reservaste como invitado,
-        conservarás tus reservas al crear tu cuenta.
+        Crea una cuenta con correo y contraseña para consultar tus citas
+        desde otro navegador. Si tienes una sesión de invitado anterior,
+        puedes convertirla en cuenta y conservar sus reservas.
       </p>
 
       <form id="signupForm">
@@ -512,8 +519,8 @@ footer {
   </form>
 
   <small>
-    Se actualiza cada 5 segundos.
-    El dueño responde cuando está conectado.
+    Los mensajes y avisos aparecen automáticamente, aunque estés en otra
+    sección de la aplicación. El dueño responde cuando está conectado.
   </small>
 </section>
 
@@ -540,6 +547,14 @@ let selected = null;
 let refreshing = false;
 let messagesSignature = "";
 let sessionVersion = 0;
+let liveChannel = null;
+let liveIdentity = "";
+let liveTimer = null;
+let liveBusy = false;
+let liveAgain = false;
+let refreshSoon = null;
+let alertSignature = "";
+const bookingSignatures = { client: "", owner: "" };
 
 function notify(text) {
   $("notice").textContent = text;
@@ -616,6 +631,13 @@ function clearPrivateViews() {
   sessionVersion++;
   selected = null;
   messagesSignature = "";
+  alertSignature = "";
+  bookingSignatures.client = "";
+  bookingSignatures.owner = "";
+  stopLiveUpdates();
+  $("alertList").replaceChildren();
+  $("alertCount").textContent = "0";
+  $("alertsPanel").hidden = true;
 
   $("messages").replaceChildren();
   $("bookingList").replaceChildren();
@@ -636,14 +658,19 @@ async function syncIdentity() {
     : false;
 
   $("identity").textContent = !user
-    ? "Visitante · Puedes reservar sin crear cuenta."
+    ? "Visitante · Inicia sesión o crea tu cuenta para reservar."
     : owner
       ? "Conectado como dueño"
       : user.is_anonymous
-        ? "Invitado · Puedes crear una cuenta y conservar tus reservas."
+        ? "Sesión anterior de invitado · Crea una cuenta para poder reservar."
         : `Cuenta: ${user.email}`;
 
   $("logout").hidden = !user;
+  const canReserve = Boolean(user && !user.is_anonymous && user.email && !owner);
+  $("reserveSubmit").textContent = canReserve ? "Reservar cita" : "Iniciar sesión para reservar";
+  $("loginRequired").hidden = canReserve;
+  $("alertsPanel").hidden = !user;
+  startLiveUpdates();
   $("ownerPanel").hidden = !owner;
   $("ownerLoginForm").hidden = owner;
 
@@ -652,22 +679,27 @@ async function syncIdentity() {
   }
 }
 
-async function ensureGuest() {
-  requireConnection();
-
-  if (!user) {
-    result(await sb.auth.signInAnonymously());
-    await syncIdentity();
-  }
+function showPage(target) {
+  document.querySelectorAll(".page").forEach(page => {
+    page.hidden = page.id !== target;
+  });
+  $("chatPanel").hidden = true;
 }
 
-async function loadSlots() {
+function requireClientAccount() {
+  if (!user || user.is_anonymous || !user.email) {
+    showPage("account");
+    $("loginEmail").focus();
+    throw new Error("Inicia sesión con correo y contraseña, o crea tu cuenta antes de reservar.");
+  }
+  if (owner) throw new Error("Entra con una cuenta de cliente para reservar.");
+}
+
+async function loadSlots(quiet = false) {
   requireConnection();
 
   const day = $("day").value;
-  $("hour").replaceChildren();
-  $("hour").add(new Option("Selecciona una hora", ""));
-
+  const chosenHour = $("hour").value;
   if (!day) return;
 
   const slots = result(
@@ -684,9 +716,8 @@ async function loadSlots() {
     $("hour").add(new Option(row.slot, row.slot));
   }
 
-  if (!slots.length) {
-    notify("No hay horarios disponibles para ese día.");
-  }
+  if (quiet && slots.some(row => row.slot === chosenHour)) $("hour").value = chosenHour;
+  if (!quiet && !slots.length) notify("No hay horarios disponibles para ese día.");
 }
 
 async function loadSettings() {
@@ -718,15 +749,14 @@ async function loadSettings() {
     encodeURIComponent(query);
 }
 
-async function loadBookings(admin = false) {
+async function loadBookings(admin = false, quiet = false) {
   requireConnection();
 
   const list = $(admin ? "ownerList" : "bookingList");
-  list.replaceChildren();
-
   if (!user) {
+    list.replaceChildren();
     list.textContent =
-      "Primero reserva como invitado o inicia sesión.";
+      "Inicia sesión con tu cuenta para consultar tus citas.";
     return;
   }
 
@@ -747,6 +777,11 @@ async function loadBookings(admin = false) {
   const bookings = result(await query);
 
   if (version !== sessionVersion) return;
+  const kind = admin ? "owner" : "client";
+  const signature = JSON.stringify(bookings);
+  if (quiet && bookingSignatures[kind] === signature) return;
+  bookingSignatures[kind] = signature;
+  list.replaceChildren();
 
   if (!bookings.length) {
     list.textContent = "No hay citas registradas.";
@@ -881,12 +916,11 @@ async function login(email, password, ownerAccess) {
     );
   }
 
-  clearPrivateViews();
-
   result(
     await sb.auth.signInWithPassword({ email, password })
   );
 
+  clearPrivateViews();
   await syncIdentity();
 
   if (ownerAccess && !owner) {
@@ -927,15 +961,13 @@ document.querySelectorAll("[data-page]").forEach(button => {
   button.onclick = () => safely(async () => {
     const target = button.dataset.page;
 
-    document.querySelectorAll(".page").forEach(page => {
-      page.hidden = page.id !== target;
-    });
-
-    $("chatPanel").hidden = true;
+    showPage(target);
 
     if (sb && target === "appointments") {
       await loadBookings();
     }
+
+    if (sb && target === "owner" && owner) await loadBookings(true);
 
     if (sb && target === "location") {
       await loadSettings();
@@ -966,13 +998,18 @@ $("refreshOwner").onclick = () => safely(
   () => loadBookings(true)
 );
 
-// Reservar directamente como invitado o cliente.
-bindForm("bookingForm", async () => {
-  if (owner) {
-    throw new Error(
-      "Cierra la sesión del dueño para reservar como cliente."
-    );
+// Lleva al acceso antes de pedir llenar el formulario de reserva.
+$("reserveSubmit").onclick = event => {
+  if (!user || user.is_anonymous || !user.email || owner) {
+    event.preventDefault();
+    safely(async () => requireClientAccount());
   }
+};
+
+// Cada reserva exige una cuenta permanente, también en las reglas SQL.
+bindForm("bookingForm", async () => {
+  await syncIdentity();
+  requireClientAccount();
 
   const name = $("clientName").value.trim();
 
@@ -984,8 +1021,6 @@ bindForm("bookingForm", async () => {
     $("day").value,
     $("hour").value
   );
-
-  await ensureGuest();
 
   const response = await sb.from("alma_bookings")
     .insert({
@@ -1055,7 +1090,7 @@ bindForm("signupForm", async () => {
 
   notify(
     user && !user.is_anonymous
-      ? "✅ Cuenta creada. Tus reservas se conservan."
+      ? "✅ Cuenta creada. Ya puedes reservar con tu cuenta."
       : "Revisa la configuración de confirmación de correo de Supabase."
   );
 });
@@ -1254,6 +1289,121 @@ $("logout").onclick = () => safely(async () => {
   notify("Sesión cerrada.");
 });
 
+// Avisos persistentes: nuevas citas, mensajes y cambios del dueño.
+async function loadAlerts() {
+  if (!user) return;
+  const version = sessionVersion;
+  const response = await sb.from("alma_notifications")
+    .select("*", { count: "exact" }).eq("user_id", user.id)
+    .is("read_at", null).order("created_at", { ascending: false }).limit(100);
+  const alerts = result(response);
+  if (version !== sessionVersion) return;
+  const signature = JSON.stringify([response.count, alerts]);
+  if (signature === alertSignature) return;
+  alertSignature = signature;
+  $("alertCount").textContent = String(response.count || 0);
+  const list = $("alertList");
+  list.replaceChildren();
+  if (!alerts.length) {
+    list.textContent = "No tienes avisos pendientes.";
+    return;
+  }
+  for (const alert of alerts) {
+    const card = document.createElement("article");
+    card.className = "booking";
+    const title = document.createElement("strong");
+    title.textContent = alert.title;
+    const body = document.createElement("p");
+    body.textContent = alert.body;
+    const open = document.createElement("button");
+    open.textContent = "Ver cita y conversación";
+    open.onclick = () => safely(async () => {
+      const booking = result(await sb.from("alma_bookings").select("*")
+        .eq("id", alert.booking_id).single());
+      showPage(owner ? "owner" : "appointments");
+      await openBooking(booking, owner);
+      result(await sb.rpc("alma_read_notification", { p_id: alert.id }));
+      await loadAlerts();
+    });
+    const read = document.createElement("button");
+    read.className = "secondary";
+    read.textContent = "Marcar leído";
+    read.onclick = () => safely(async () => {
+      result(await sb.rpc("alma_read_notification", { p_id: alert.id }));
+      await loadAlerts();
+    });
+    card.append(title, body, open, document.createTextNode(" "), read);
+    list.append(card);
+  }
+}
+
+function stopLiveUpdates() {
+  clearInterval(liveTimer);
+  clearTimeout(refreshSoon);
+  liveTimer = null;
+  refreshSoon = null;
+  if (liveChannel && sb) sb.removeChannel(liveChannel);
+  liveChannel = null;
+  liveIdentity = "";
+  liveAgain = false;
+}
+
+function scheduleLiveRefresh() {
+  if (!user || document.hidden) return;
+  clearTimeout(refreshSoon);
+  refreshSoon = setTimeout(() => safely(refreshEverything), 150);
+}
+
+async function refreshEverything() {
+  if (!user || document.hidden) return;
+  if (liveBusy) { liveAgain = true; return; }
+  liveBusy = true;
+  try {
+    const tasks = [loadAlerts(), loadBookings(owner, true), loadSlots(true)];
+    if (selected) tasks.push(refreshChat());
+    const results = await Promise.allSettled(tasks);
+    for (const entry of results) {
+      if (entry.status === "rejected") {
+        console.error(entry.reason);
+        $("liveStatus").textContent = "No se pudo sincronizar todo. Se reintentará automáticamente; comprueba que ejecutaste la actualización SQL.";
+      }
+    }
+  } finally {
+    liveBusy = false;
+    if (liveAgain) { liveAgain = false; scheduleLiveRefresh(); }
+  }
+}
+
+function startLiveUpdates() {
+  const key = user ? `${user.id}:${owner}` : "";
+  if (key === liveIdentity) return;
+  stopLiveUpdates();
+  if (!user) return;
+  liveIdentity = key;
+  const currentIdentity = key;
+  const options = { event: "*", schema: "public", table: "alma_bookings" };
+  if (!owner) options.filter = `user_id=eq.${user.id}`;
+  liveChannel = sb.channel(`alma-account-${user.id}-${Date.now()}`)
+    .on("postgres_changes", options, scheduleLiveRefresh)
+    .on("postgres_changes", {
+      event: "INSERT", schema: "public", table: "alma_messages"
+    }, scheduleLiveRefresh)
+    .on("postgres_changes", {
+      event: "*", schema: "public", table: "alma_notifications",
+      filter: `user_id=eq.${user.id}`
+    }, scheduleLiveRefresh)
+    .subscribe(status => {
+      if (currentIdentity !== liveIdentity) return;
+      $("liveStatus").textContent = status === "SUBSCRIBED"
+        ? "Actualización automática conectada."
+        : "Actualización automática cada 5 segundos mientras reconecta.";
+      if (status === "SUBSCRIBED") scheduleLiveRefresh();
+    });
+  // Respaldo automático si se interrumpe la conexión Realtime.
+  liveTimer = setInterval(scheduleLiveRefresh, 5000);
+  scheduleLiveRefresh();
+}
+
 // Conexión inicial.
 async function start() {
   if (
@@ -1277,26 +1427,22 @@ async function start() {
   await syncIdentity();
   await loadSettings();
 
-  // Si la sesión cambia en otra pestaña, limpia la información anterior.
-  sb.auth.onAuthStateChange(event => {
-    if (event === "SIGNED_OUT") {
+  // No se llama a otros métodos Auth dentro del callback para evitar bloqueos.
+  sb.auth.onAuthStateChange((event, session) => {
+    const nextId = session?.user?.id || "";
+    if (event === "SIGNED_OUT" || nextId !== (user?.id || "")) {
       clearPrivateViews();
       user = null;
       owner = false;
-      $("identity").textContent =
-        "Visitante · Puedes reservar sin crear cuenta.";
-      $("logout").hidden = true;
       $("ownerPanel").hidden = true;
       $("ownerLoginForm").hidden = false;
     }
+    setTimeout(() => safely(syncIdentity), 0);
   });
-
-  // Actualiza la conversación abierta.
-  setInterval(() => {
-    if (!document.hidden && selected) {
-      safely(refreshChat);
-    }
-  }, 5000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) scheduleLiveRefresh();
+  });
+  window.addEventListener("online", scheduleLiveRefresh);
 }
 
 safely(start);
